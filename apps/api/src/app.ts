@@ -20,6 +20,9 @@ const app = Fastify({
 });
 
 async function start() {
+  const dbUrl = process.env.DATABASE_URL || "";
+  console.log(`DATABASE_URL starts with: [${dbUrl.slice(0, 20)}]`);
+
   // ── Plugins ────────────────────────────────────────────────────────────────
   await app.register(helmet, { contentSecurityPolicy: false });
 
