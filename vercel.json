@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd apps/web && next build",
-  "outputDirectory": "apps/web/.next",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
   "installCommand": "pnpm install --config.approve-builds=1",
   "framework": "nextjs"
 }
