@@ -24,9 +24,7 @@ async function start() {
   await app.register(helmet, { contentSecurityPolicy: false });
 
   await app.register(cors, {
-    origin: process.env.NODE_ENV === "production"
-      ? [process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"]
-      : true,
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
@@ -60,7 +58,7 @@ async function start() {
   await app.register(billingRoutes, { prefix: "/v1/billing" });
 
   // ── Start ──────────────────────────────────────────────────────────────────
-  const port = parseInt(process.env.API_PORT || "3001");
+  const port = parseInt(process.env.PORT || process.env.API_PORT || "3001");
   const host = process.env.API_HOST || "0.0.0.0";
 
   await app.listen({ port, host });
