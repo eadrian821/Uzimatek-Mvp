@@ -2,6 +2,6 @@
   "version": 2,
   "buildCommand": "next build",
   "outputDirectory": ".next",
-  "installCommand": "pnpm install --config.approve-builds=1",
+  "installCommand": "pnpm install --no-frozen-lockfile --config.approve-builds=1",
   "framework": "nextjs"
 }
