@@ -1,0 +1,98 @@
+# ─────────────────────────────────────────────
+# Node / pnpm
+# ─────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+.pnpm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─────────────────────────────────────────────
+# Next.js
+# ─────────────────────────────────────────────
+apps/web/.next/
+apps/web/out/
+apps/web/.turbo/
+
+# ─────────────────────────────────────────────
+# TypeScript build artifacts
+# ─────────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+
+# ─────────────────────────────────────────────
+# Prisma
+# ─────────────────────────────────────────────
+packages/db/prisma/migrations/
+
+# ─────────────────────────────────────────────
+# Environment files — NEVER commit these
+# ─────────────────────────────────────────────
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+
+# ─────────────────────────────────────────────
+# Logs
+# ─────────────────────────────────────────────
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ─────────────────────────────────────────────
+# OS files
+# ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────────
+# Editor / IDE
+# ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.history/
+
+# ─────────────────────────────────────────────
+# Turbo
+# ─────────────────────────────────────────────
+.turbo/
+
+# ─────────────────────────────────────────────
+# Coverage / test artifacts
+# ─────────────────────────────────────────────
+coverage/
+.nyc_output/
+__pycache__/
+*.pyc
+
+# ─────────────────────────────────────────────
+# Docker volumes / secrets
+# ─────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─────────────────────────────────────────────
+# Miscellaneous
+# ─────────────────────────────────────────────
+*.local
+.approved-builds.json

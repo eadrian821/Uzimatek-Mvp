@@ -1,0 +1,371 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector", schema: "public"), uuid_ossp(map: "uuid-ossp", schema: "public")]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FACILITY & USERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Facility {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  shaCode          String   @unique
+  kmpdcLicense     String
+  kraPin           String
+  level            String   // "3" | "4" | "5" | "6"
+  county           String
+  subCounty        String
+  ward             String
+  phone            String
+  email            String
+  address          String
+  bankAccountName  String?
+  bankAccountNumber String?
+  bankName         String?
+  mpesaPaybill     String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users         User[]
+  providers     Provider[]
+  patients      Patient[]
+  encounters    Encounter[]
+  claims        Claim[]
+  subscriptions Subscription[]
+  usageMeters   UsageMeter[]
+  auditEvents   AuditEvent[]
+
+  @@map("facilities")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId   String   @db.Uuid
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // super_admin | facility_admin | manager | biller | read_only
+  status       String   @default("active") // active | suspended | invited
+  lastLoginAt  DateTime?
+  failedAttempts Int    @default(0)
+  lockedUntil  DateTime?
+  otpSecret    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  facility     Facility   @relation(fields: [facilityId], references: [id])
+  auditEvents  AuditEvent[] @relation("ActorAuditEvents")
+
+  @@map("users")
+}
+
+model Provider {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId   String   @db.Uuid
+  kmpdcNo      String
+  name         String
+  specialty    String
+  role         String   // doctor | nurse | clinical_officer | pharmacist | other
+  email        String?
+  phone        String?
+  signatureUrl String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  facility     Facility    @relation(fields: [facilityId], references: [id])
+  encounters   Encounter[]
+
+  @@unique([facilityId, kmpdcNo])
+  @@map("providers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATIENTS & ENCOUNTERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Patient {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId      String   @db.Uuid
+  shaNumber       String
+  nationalId      String?
+  nameHash        String   // bcrypt hash of full name for dedup
+  dob             DateTime
+  sex             String   // M | F
+  phone           String?
+  createdAt       DateTime @default(now())
+
+  facility        Facility    @relation(fields: [facilityId], references: [id])
+  encounters      Encounter[]
+
+  @@unique([facilityId, shaNumber])
+  @@map("patients")
+}
+
+model Encounter {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId       String   @db.Uuid
+  patientId        String   @db.Uuid
+  providerId       String   @db.Uuid
+  patientShaNumber String
+  patientName      String
+  visitDate        DateTime
+  visitType        String   // outpatient | inpatient | day_case | emergency | maternity
+  admissionDate    DateTime?
+  dischargeDate    DateTime?
+  chiefComplaint   String
+  narrative        String   @db.Text
+  status           String   @default("draft") // draft | ready_to_code | coding | coded | claim_generated | error
+  source           String   @default("manual") // manual | csv | api
+  promptVersionId  String?  @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  facility         Facility        @relation(fields: [facilityId], references: [id])
+  patient          Patient         @relation(fields: [patientId], references: [id])
+  provider         Provider        @relation(fields: [providerId], references: [id])
+  items            EncounterItem[]
+  claims           Claim[]
+  promptVersion    PromptVersion?  @relation(fields: [promptVersionId], references: [id])
+
+  @@map("encounters")
+}
+
+model EncounterItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  encounterId     String   @db.Uuid
+  type            String   // diagnosis | procedure | drug | investigation
+  rawText         String
+  code            String?
+  codeSystem      String?  // ICD-10 | SHA-Tariff | ATC
+  description     String?
+  confidence      Float?
+  confidenceBand  String?  // high | medium | low
+  rationale       String?  @db.Text
+  source          String   @default("ai") // ai | biller
+  unitPrice       Float?
+  quantity        Int?
+  isOverridden    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  encounter       Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@map("encounter_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLAIMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Claim {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId        String    @db.Uuid
+  encounterId       String    @db.Uuid
+  payer             String    @default("SHA")
+  claimNumber       String?
+  status            String    @default("draft")
+  totalAmount       Float     @default(0)
+  paidAmount        Float?
+  submittedAt       DateTime?
+  paidAt            DateTime?
+  denialReasonCode  String?
+  confidenceBand    String?
+  hasFlags          Boolean   @default(false)
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  facility          Facility      @relation(fields: [facilityId], references: [id])
+  encounter         Encounter     @relation(fields: [encounterId], references: [id])
+  lines             ClaimLine[]
+  submissions       Submission[]
+  denials           Denial[]
+
+  @@map("claims")
+}
+
+model ClaimLine {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId         String   @db.Uuid
+  shaTariffCode   String
+  description     String
+  quantity        Int      @default(1)
+  unitPrice       Float
+  lineTotal       Float
+  icdCode         String?
+  createdAt       DateTime @default(now())
+
+  claim           Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@map("claim_lines")
+}
+
+model Submission {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId         String   @db.Uuid
+  channel         String   // api | rpa | manual
+  requestPayload  Json
+  responsePayload Json?
+  statusCode      Int?
+  latencyMs       Int?
+  idempotencyKey  String   @unique
+  attempt         Int      @default(1)
+  status          String   // pending | success | failed | retrying
+  createdAt       DateTime @default(now())
+
+  claim           Claim @relation(fields: [claimId], references: [id])
+
+  @@map("submissions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DENIALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Denial {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId             String    @db.Uuid
+  reasonCode          String
+  reasonText          String
+  classifiedCategory  String    // missing_doc | coding_error | eligibility | duplicate | tariff_mismatch | other
+  suggestedFix        String?   @db.Text
+  appealLetterDraft   String?   @db.Text
+  resolvedAt          DateTime?
+  appealDeadline      DateTime
+  createdAt           DateTime  @default(now())
+
+  claim               Claim @relation(fields: [claimId], references: [id])
+
+  @@map("denials")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI / CODING INFRASTRUCTURE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Icd10Code {
+  code        String  @id
+  description String
+  category    String?
+  embedding   Unsupported("vector(384)")?
+
+  @@map("icd10_codes")
+}
+
+model ShaTariff {
+  code          String   @id
+  description   String
+  level         String
+  package       String
+  unitPriceKes  Float
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive      Boolean  @default(true)
+  embedding     Unsupported("vector(384)")?
+
+  @@map("sha_tariffs")
+}
+
+model PromptVersion {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  template    String   @db.Text
+  model       String
+  version     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  encounters  Encounter[]
+
+  @@map("prompt_versions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BILLING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId          String   @db.Uuid
+  plan                String   @default("starter") // starter | growth | scale
+  status              String   @default("active") // active | suspended | cancelled
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  facility            Facility     @relation(fields: [facilityId], references: [id])
+  invoices            Invoice[]
+
+  @@map("subscriptions")
+}
+
+model UsageMeter {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId    String   @db.Uuid
+  period        String   // YYYY-MM
+  claimsCount   Int      @default(0)
+  claimsBilled  Int      @default(0)
+  amountKes     Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  facility      Facility @relation(fields: [facilityId], references: [id])
+
+  @@unique([facilityId, period])
+  @@map("usage_meters")
+}
+
+model Invoice {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId  String    @db.Uuid
+  period          String
+  claimsCount     Int
+  amountKes       Float
+  status          String    @default("pending") // pending | paid | overdue | void
+  dueDate         DateTime
+  paidAt          DateTime?
+  paymentMethod   String?
+  mpesaRef        String?
+  createdAt       DateTime  @default(now())
+
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@map("invoices")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facilityId  String   @db.Uuid
+  actorId     String   @db.Uuid
+  action      String
+  entityType  String
+  entityId    String
+  beforeJson  Json?
+  afterJson   Json?
+  ip          String
+  userAgent   String
+  hashPrev    String
+  hashSelf    String
+  createdAt   DateTime @default(now())
+
+  facility    Facility @relation(fields: [facilityId], references: [id])
+  actor       User     @relation("ActorAuditEvents", fields: [actorId], references: [id])
+
+  @@index([facilityId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_events")
+}

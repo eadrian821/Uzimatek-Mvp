@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ─────────────────────────────────────────────
+   Design Tokens
+───────────────────────────────────────────── */
+:root {
+  --bg-primary: #060b18;
+  --bg-secondary: #0d1526;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-accent: rgba(20, 184, 166, 0.3);
+  --text-primary: #f0f4ff;
+  --text-secondary: #94a3b8;
+  --accent-teal: #14b8a6;
+  --accent-teal-bright: #2dd4bf;
+  --accent-gold: #f59e0b;
+  --glass-bg: rgba(13, 21, 38, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --sidebar-width: 256px;
+
+  /* Radix / shadcn tokens (dark mode always) */
+  --background: 222 47% 5%;
+  --foreground: 210 40% 96%;
+  --card: 222 47% 7%;
+  --card-foreground: 210 40% 96%;
+  --popover: 222 47% 7%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 174 75% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 32% 15%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 32% 12%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 36 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 32% 12%;
+  --input: 217 32% 12%;
+  --ring: 174 75% 40%;
+  --radius: 0.75rem;
+}
+
+/* ─────────────────────────────────────────────
+   Base Styles
+───────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Glass morphism utilities
+───────────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-card {
+    background: rgba(13, 21, 38, 0.6);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius);
+  }
+
+  .glass-hover {
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass-hover:hover {
+    background: rgba(20, 184, 166, 0.06);
+    border-color: rgba(20, 184, 166, 0.2);
+    box-shadow: 0 8px 32px rgba(20, 184, 166, 0.08);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 50%, #0891b2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-gold {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effects */
+  .glow-teal {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3), 0 0 40px rgba(20, 184, 166, 0.1);
+  }
+
+  .glow-teal-sm {
+    box-shadow: 0 0 10px rgba(20, 184, 166, 0.25);
+  }
+
+  /* Noise texture overlay */
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Animated gradient border */
+  .border-gradient {
+    position: relative;
+    background: transparent;
+  }
+  .border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(var(--radius) + 1px);
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(8, 145, 178, 0.2), rgba(20, 184, 166, 0.1));
+    z-index: -1;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Animated backgrounds
+───────────────────────────────────────────── */
+.hero-gradient {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(20, 184, 166, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(8, 145, 178, 0.08) 0%, transparent 50%),
+    var(--bg-primary);
+}
+
+.mesh-gradient {
+  background:
+    radial-gradient(at 27% 37%, rgba(20, 184, 166, 0.12) 0px, transparent 50%),
+    radial-gradient(at 97% 21%, rgba(245, 158, 11, 0.06) 0px, transparent 50%),
+    radial-gradient(at 52% 99%, rgba(8, 145, 178, 0.1) 0px, transparent 50%),
+    radial-gradient(at 10% 29%, rgba(20, 184, 166, 0.08) 0px, transparent 50%),
+    var(--bg-primary);
+}
+
+/* ─────────────────────────────────────────────
+   Skeleton / shimmer
+───────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─────────────────────────────────────────────
+   Status badges (dark variants)
+───────────────────────────────────────────── */
+.status-draft     { @apply bg-slate-800/80 text-slate-300 border border-slate-700/50; }
+.status-pending   { @apply bg-blue-500/10 text-blue-300 border border-blue-500/20; }
+.status-submitted { @apply bg-violet-500/10 text-violet-300 border border-violet-500/20; }
+.status-paid      { @apply bg-emerald-500/10 text-emerald-300 border border-emerald-500/20; }
+.status-denied    { @apply bg-red-500/10 text-red-300 border border-red-500/20; }
+.status-appealed  { @apply bg-orange-500/10 text-orange-300 border border-orange-500/20; }
+
+/* Confidence bands */
+.confidence-high   { @apply text-emerald-400 bg-emerald-500/10 border border-emerald-500/20; }
+.confidence-medium { @apply text-amber-400 bg-amber-500/10 border border-amber-500/20; }
+.confidence-low    { @apply text-red-400 bg-red-500/10 border border-red-500/20; }
+
+/* ─────────────────────────────────────────────
+   Pulse dot for live indicators
+───────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────
+   Reduced motion
+───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

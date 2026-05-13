@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "buildCommand": "cd apps/web && next build",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "pnpm install --config.approve-builds=1",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@api_url",
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key"
+  }
+}
