@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm install --config.approve-builds=1 && pnpm --filter @uzimatek/db db:generate && pnpm --filter @uzimatek/shared-types build && pnpm --filter @uzimatek/ai build && pnpm --filter @uzimatek/api build"
+buildCommand = "pnpm install --no-frozen-lockfile --config.approve-builds=1 && pnpm --filter @uzimatek/db db:generate && pnpm --filter @uzimatek/shared-types build && pnpm --filter @uzimatek/ai build && pnpm --filter @uzimatek/api build"
 
 [deploy]
 startCommand = "node dist/app.js"
