@@ -7,13 +7,248 @@ import {
   Upload, Plus, Sparkles, Loader2, FileUp, Check,
   Eye, FileText, Search, Stethoscope, UserRound,
   Brain, ClipboardList, ArrowRight, TrendingUp,
-  Calendar, ChevronRight, Activity,
+  Calendar, ChevronRight, Activity, X, Phone, User,
+  Heart, Thermometer, Wind,
 } from "lucide-react";
 import Papa from "papaparse";
 import { api } from "@/lib/api";
 import { formatDate, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+
+/* ── Register Patient Modal ──────────────────────────────────────── */
+const EMPTY_PT = { shaNumber:"", name:"", dob:"", sex:"" as "M"|"F"|"", phone:"", county:"Nairobi", nokName:"", nokPhone:"", allergies:"", chronicConditions:"" };
+
+function RegisterPatientModal({ onClose, onSave }: { onClose:()=>void; onSave:(p:typeof MOCK_PATIENTS[0])=>void }) {
+  const [form, setForm] = useState(EMPTY_PT);
+  const [loading, setLoading] = useState(false);
+  const set = (k: keyof typeof EMPTY_PT, v: string) => setForm(f=>({...f,[k]:v}));
+  const iS = { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.09)", color:"#f0f4ff" };
+  const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all";
+  const labelCls = "block text-xs font-semibold text-slate-400 mb-1.5";
+
+  const submit = async () => {
+    if (!form.name) return;
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 1200));
+    onSave({
+      shaNumber: form.shaNumber || `SHA${Date.now().toString().slice(-10)}`,
+      name: form.name, dob: form.dob||"—", sex: form.sex||"M",
+      phone: form.phone||"—", visits: 0,
+      lastVisit: new Date().toISOString().slice(0,10),
+    });
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)" }}>
+      <motion.div initial={{ scale:0.95,opacity:0 }} animate={{ scale:1,opacity:1 }}
+        className="w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl"
+        style={{ background:"linear-gradient(180deg,#0d1526,#060b18)", border:"1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center gap-4 px-6 py-4" style={{ borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+               style={{ background:"linear-gradient(135deg,#14b8a6,#0891b2)" }}>
+            <UserRound className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-white font-bold">Register Patient</h2>
+            <p className="text-slate-500 text-xs">Create a new patient record in MyUzimaClinical</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:text-white"
+                  style={{ background:"rgba(255,255,255,0.04)" }}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-none">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>SHA Number</label>
+              <input className={inputCls} style={iS} placeholder="SHA2024XXXXXX"
+                value={form.shaNumber} onChange={e=>set("shaNumber",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Full Name *</label>
+              <input className={inputCls} style={iS} placeholder="Full name"
+                value={form.name} onChange={e=>set("name",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Date of Birth</label>
+              <input type="date" className={inputCls} style={iS}
+                value={form.dob} onChange={e=>set("dob",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Sex</label>
+              <select className={inputCls} style={iS} value={form.sex} onChange={e=>set("sex",e.target.value as "M"|"F"|"")}>
+                <option value="">Select…</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Phone</label>
+              <input className={inputCls} style={iS} placeholder="+254 7XX XXX XXX"
+                value={form.phone} onChange={e=>set("phone",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>County</label>
+              <input className={inputCls} style={iS} placeholder="Nairobi"
+                value={form.county} onChange={e=>set("county",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Next of Kin</label>
+              <input className={inputCls} style={iS} placeholder="Name"
+                value={form.nokName} onChange={e=>set("nokName",e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>NOK Phone</label>
+              <input className={inputCls} style={iS} placeholder="+254…"
+                value={form.nokPhone} onChange={e=>set("nokPhone",e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls}>Known Allergies</label>
+              <input className={inputCls} style={iS} placeholder="e.g. Penicillin, Sulfonamides — or None"
+                value={form.allergies} onChange={e=>set("allergies",e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls}>Chronic Conditions</label>
+              <input className={inputCls} style={iS} placeholder="e.g. Diabetes Type 2, Hypertension"
+                value={form.chronicConditions} onChange={e=>set("chronicConditions",e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4" style={{ borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-slate-400"
+                  style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)" }}>Cancel</button>
+          <button onClick={submit} disabled={loading||!form.name}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+            style={{ background:"linear-gradient(135deg,#14b8a6,#0891b2)", boxShadow:"0 0 16px rgba(20,184,166,0.25)" }}>
+            {loading?<><Loader2 className="w-4 h-4 animate-spin"/>Saving…</>:<><Check className="w-4 h-4"/>Register Patient</>}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ── New Encounter Modal ─────────────────────────────────────────── */
+const VISIT_TYPES = ["outpatient","inpatient","emergency","maternity","day_case"];
+const EMPTY_ENC = { patientShaNumber:"", patientName:"", visitType:"outpatient", chiefComplaint:"", provider:"", referral:"no" };
+
+function NewEncounterModal({ patients, onClose, onSave }: {
+  patients: typeof MOCK_PATIENTS;
+  onClose:()=>void;
+  onSave:(e:typeof MOCK_ENCOUNTERS[0])=>void;
+}) {
+  const [form, setForm] = useState(EMPTY_ENC);
+  const [loading, setLoading] = useState(false);
+  const [lookup, setLookup] = useState(false);
+  const set = (k: keyof typeof EMPTY_ENC, v: string) => setForm(f=>({...f,[k]:v}));
+  const iS = { background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.09)", color:"#f0f4ff" };
+  const inputCls = "w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-1 focus:ring-teal-500";
+  const labelCls = "block text-xs font-semibold text-slate-400 mb-1.5";
+
+  const lookupPatient = () => {
+    setLookup(true);
+    const found = patients.find(p=>p.shaNumber===form.patientShaNumber||p.name.toLowerCase()===form.patientShaNumber.toLowerCase());
+    setTimeout(()=>{ setLookup(false); if(found) set("patientName",found.name); }, 800);
+  };
+
+  const submit = async () => {
+    if (!form.chiefComplaint||!form.patientName) return;
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 1400));
+    onSave({
+      id:`e${Date.now()}`,
+      patientShaNumber:form.patientShaNumber||`SHA${Date.now().toString().slice(-10)}`,
+      patientName:form.patientName,
+      visitDate:new Date().toISOString(),
+      visitType:form.visitType,
+      chiefComplaint:form.chiefComplaint,
+      status:"ready_to_code",
+      source:"manual",
+      provider:{ name:form.provider||"Dr. Unknown", specialty:"General Medicine" },
+      items:[],
+      _count:{ claims:0 },
+      confidence:null,
+    });
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)" }}>
+      <motion.div initial={{ scale:0.95,opacity:0 }} animate={{ scale:1,opacity:1 }}
+        className="w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col rounded-2xl"
+        style={{ background:"linear-gradient(180deg,#0d1526,#060b18)", border:"1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center gap-4 px-6 py-4" style={{ borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+               style={{ background:"linear-gradient(135deg,#14b8a6,#0891b2)" }}>
+            <Stethoscope className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-white font-bold">New Encounter</h2>
+            <p className="text-slate-500 text-xs">Record a new clinical visit</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:text-white"
+                  style={{ background:"rgba(255,255,255,0.04)" }}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-none">
+          <div>
+            <label className={labelCls}>SHA Number / Patient Name</label>
+            <div className="flex gap-2">
+              <input className={inputCls+" flex-1"} style={iS} placeholder="SHA number or search name"
+                value={form.patientShaNumber} onChange={e=>set("patientShaNumber",e.target.value)} />
+              <button onClick={lookupPatient}
+                className="px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-1.5 flex-shrink-0"
+                style={{ background:"rgba(20,184,166,0.1)", border:"1px solid rgba(20,184,166,0.2)", color:"#2dd4bf" }}>
+                {lookup?<Loader2 className="w-3.5 h-3.5 animate-spin"/>:<Search className="w-3.5 h-3.5"/>}Lookup
+              </button>
+            </div>
+          </div>
+          {form.patientName && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                 style={{ background:"rgba(20,184,166,0.08)", border:"1px solid rgba(20,184,166,0.2)" }}>
+              <Check className="w-3.5 h-3.5 text-teal-400" />
+              <span className="text-sm text-teal-300 font-medium">{form.patientName}</span>
+            </div>
+          )}
+          <div>
+            <label className={labelCls}>Patient Name (if not found above)</label>
+            <input className={inputCls} style={iS} placeholder="Full name"
+              value={form.patientName} onChange={e=>set("patientName",e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Visit Type</label>
+              <select className={inputCls} style={iS} value={form.visitType} onChange={e=>set("visitType",e.target.value)}>
+                {VISIT_TYPES.map(v=><option key={v} value={v}>{v.replace("_"," ")}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Referring Doctor</label>
+              <input className={inputCls} style={iS} placeholder="Dr. Name (KMPDC)"
+                value={form.provider} onChange={e=>set("provider",e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Chief Complaint *</label>
+            <textarea className={inputCls} style={{ ...iS, minHeight:80, resize:"none" as const }}
+              placeholder="Primary presenting complaint…"
+              value={form.chiefComplaint} onChange={e=>set("chiefComplaint",e.target.value)} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4" style={{ borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-slate-400"
+                  style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)" }}>Cancel</button>
+          <button onClick={submit} disabled={loading||!form.patientName||!form.chiefComplaint}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+            style={{ background:"linear-gradient(135deg,#14b8a6,#0891b2)", boxShadow:"0 0 16px rgba(20,184,166,0.25)" }}>
+            {loading?<><Loader2 className="w-4 h-4 animate-spin"/>Creating…</>:<><Check className="w-4 h-4"/>Create Encounter</>}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 const MOCK_ENCOUNTERS = [
   {
@@ -93,6 +328,10 @@ export default function EncountersPage() {
   const [search, setSearch]           = useState("");
   const [codingId, setCodingId]       = useState<string | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
+  const [showRegisterPatient, setShowRegisterPatient] = useState(false);
+  const [showNewEncounter, setShowNewEncounter] = useState(false);
+  const [localPatients, setLocalPatients] = useState(MOCK_PATIENTS);
+  const [localEncounters, setLocalEncounters] = useState<typeof MOCK_ENCOUNTERS>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["encounters"],
@@ -126,18 +365,44 @@ export default function EncountersPage() {
     Papa.parse(file, { header: true, skipEmptyLines: true, complete: (r) => setCsvPreview(r.data as Record<string, string>[]) });
   };
 
-  const encounters = data?.items || MOCK_ENCOUNTERS;
+  const encounters = [...localEncounters, ...(data?.items || MOCK_ENCOUNTERS)];
   const filtered   = search
     ? encounters.filter(e => e.patientName.toLowerCase().includes(search.toLowerCase()) || e.patientShaNumber.includes(search))
     : encounters;
 
   const codingQueue = encounters.filter(e => ["ready_to_code", "draft"].includes(e.status));
+  const allPatients = [...localPatients.filter(p => !MOCK_PATIENTS.find(m => m.shaNumber === p.shaNumber))];
+  const mergedPatients = [...allPatients, ...MOCK_PATIENTS];
   const filteredPatients = patientSearch
-    ? MOCK_PATIENTS.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.shaNumber.includes(patientSearch))
-    : MOCK_PATIENTS;
+    ? mergedPatients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.shaNumber.includes(patientSearch))
+    : mergedPatients;
 
   return (
     <div className="p-6 min-h-full" style={{ background: "var(--bg-primary)" }}>
+      {showRegisterPatient && (
+        <RegisterPatientModal
+          onClose={() => setShowRegisterPatient(false)}
+          onSave={p => {
+            setLocalPatients(prev => [p, ...prev]);
+            setShowRegisterPatient(false);
+            setTab("records");
+            toast({ title: "Patient registered", description: `${p.name} added to records` });
+          }}
+        />
+      )}
+      {showNewEncounter && (
+        <NewEncounterModal
+          patients={mergedPatients}
+          onClose={() => setShowNewEncounter(false)}
+          onSave={e => {
+            setLocalEncounters(prev => [e, ...prev]);
+            setShowNewEncounter(false);
+            setTab("queue");
+            toast({ title: "Encounter created", description: `${e.patientName} — ready to code` });
+          }}
+        />
+      )}
+
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between mb-6">
@@ -147,7 +412,7 @@ export default function EncountersPage() {
             <h1 className="text-2xl font-bold text-white">MyUzimaClinical</h1>
           </div>
           <p className="text-slate-400 text-sm mt-1">
-            {data?.total || encounters.length} encounters · SHA clinical suite
+            {encounters.length} encounters · SHA clinical suite
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -159,6 +424,13 @@ export default function EncountersPage() {
           </motion.button>
           <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => setShowRegisterPatient(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", color: "#94a3b8" }}>
+            <User className="w-4 h-4" />Register Patient
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => setShowNewEncounter(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
             style={{ background: "linear-gradient(135deg,#14b8a6,#0891b2)", boxShadow: "0 0 20px rgba(20,184,166,0.3)" }}>
             <Plus className="w-4 h-4" />New Encounter
