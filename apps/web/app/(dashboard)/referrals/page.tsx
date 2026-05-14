@@ -1,41 +1,38 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Ambulance, MapPin, Clock, Heart, Activity, Plus, Phone,
   MessageSquare, CheckCircle2, AlertTriangle, ArrowRight,
   Zap, Building2, Wifi, Navigation, ChevronRight,
-  Radio, Shield, Thermometer, Wind,
+  Radio, Shield, Thermometer, Wind, Star, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { autoMatch, KENYA_FACILITIES, type Facility } from "@/components/referrals/KenyaReferralMap";
 
-const FACILITIES = [
-  { id: "f1", name: "AIC Litein Mission Hospital", short: "Litein", county: "Kericho", level: "4", inNetwork: true, x: 218, y: 212, home: true },
-  { id: "f2", name: "Kenyatta National Hospital", short: "KNH", county: "Nairobi", level: "6", inNetwork: true, x: 385, y: 278 },
-  { id: "f3", name: "Nakuru Level 5 Hospital", short: "Nakuru L5", county: "Nakuru", level: "5", inNetwork: true, x: 308, y: 172 },
-  { id: "f4", name: "Moi Teaching & Referral", short: "MTRH", county: "Uasin Gishu", level: "6", inNetwork: true, x: 228, y: 108 },
-  { id: "f5", name: "Kisumu County Hospital", short: "Kisumu CH", county: "Kisumu", level: "4", inNetwork: true, x: 152, y: 192 },
-  { id: "f6", name: "Kericho County Hospital", short: "Kericho CH", county: "Kericho", level: "4", inNetwork: true, x: 240, y: 238 },
-  { id: "f7", name: "Aga Khan Hospital Nairobi", short: "AKH NBI", county: "Nairobi", level: "5", inNetwork: false, x: 405, y: 295 },
-  { id: "f8", name: "Nyeri County Referral", short: "Nyeri CR", county: "Nyeri", level: "4", inNetwork: true, x: 455, y: 162 },
-  { id: "f9", name: "Kisii Teaching & Referral", short: "Kisii TR", county: "Kisii", level: "5", inNetwork: true, x: 182, y: 245 },
-  { id: "f10", name: "Mombasa County Hospital", short: "Mombasa CH", county: "Mombasa", level: "5", inNetwork: false, x: 518, y: 318 },
-];
+const KenyaReferralMap = dynamic(
+  () => import("@/components/referrals/KenyaReferralMap"),
+  { ssr: false, loading: () => (
+    <div className="w-full h-full flex items-center justify-center rounded-xl"
+         style={{ background: "rgba(6,11,24,0.8)", border: "1px solid rgba(255,255,255,0.07)", minHeight: 420 }}>
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-slate-400 text-sm">Loading Kenya Map…</span>
+      </div>
+    </div>
+  )}
+);
 
-const ROUTES = [
-  { from: "f1", to: "f3" }, { from: "f1", to: "f2" }, { from: "f1", to: "f4" },
-  { from: "f1", to: "f6" }, { from: "f3", to: "f2" }, { from: "f3", to: "f4" },
-  { from: "f5", to: "f1" }, { from: "f5", to: "f4" }, { from: "f2", to: "f8" },
-  { from: "f9", to: "f1" }, { from: "f6", to: "f3" }, { from: "f8", to: "f2" },
-];
-
+/* ── Mock referrals (uses real facility IDs) ─────────────────────── */
 const MOCK_REFERRALS = [
   {
     id: "r1", priority: "emergency", status: "in_transit",
+    condition: "trauma",
     patient: { name: "Peter Otieno", shaNumber: "SHA2024011111", age: 34, sex: "M" },
-    sending: { id: "f1", name: "AIC Litein Mission Hospital", county: "Kericho" },
-    receiving: { id: "f2", name: "Kenyatta National Hospital", county: "Nairobi" },
+    sending: { id: "litein", name: "AIC Litein Mission Hospital", county: "Kericho", lat: -0.5683, lon: 35.2167 },
+    receiving: { id: "knh", name: "Kenyatta National Hospital", county: "Nairobi" },
     diagnosis: "RTA — Polytrauma, Fracture Right Femur",
     departedAt: new Date(Date.now() - 28 * 60000).toISOString(),
     etaMinutes: 14,
@@ -47,13 +44,14 @@ const MOCK_REFERRALS = [
       { time: "14:41", text: "Vitals: HR 104, BP 88/60, SpO2 94%", type: "warning" },
       { time: "14:50", text: "Passed Nakuru junction, ETA KNH 14 min", type: "info" },
     ],
-    progress: 65, routeFrom: "f1", routeTo: "f2",
+    progress: 65,
   },
   {
     id: "r2", priority: "urgent", status: "accepted",
+    condition: "obstetric",
     patient: { name: "Grace Wanjiku", shaNumber: "SHA2024022222", age: 28, sex: "F" },
-    sending: { id: "f1", name: "AIC Litein Mission Hospital", county: "Kericho" },
-    receiving: { id: "f3", name: "Nakuru Level 5 Hospital", county: "Nakuru" },
+    sending: { id: "litein", name: "AIC Litein Mission Hospital", county: "Kericho", lat: -0.5683, lon: 35.2167 },
+    receiving: { id: "nakuru", name: "Nakuru Level 5 Hospital", county: "Nakuru" },
     diagnosis: "Eclampsia — 36 weeks gestation, seizures",
     departedAt: null, etaMinutes: null, transportMode: "ambulance",
     vitals: { hr: 118, sbp: 165, dbp: 105, spo2: 97, gcs: 14, rr: 18 },
@@ -61,13 +59,14 @@ const MOCK_REFERRALS = [
       { time: "15:10", text: "Referral accepted by Nakuru L5 OBG team", type: "success" },
       { time: "15:12", text: "Ambulance dispatched from Kericho garage", type: "info" },
     ],
-    progress: 10, routeFrom: "f1", routeTo: "f3",
+    progress: 10,
   },
   {
     id: "r3", priority: "routine", status: "completed",
+    condition: "renal",
     patient: { name: "James Mwangi", shaNumber: "SHA2024033333", age: 56, sex: "M" },
-    sending: { id: "f1", name: "AIC Litein Mission Hospital", county: "Kericho" },
-    receiving: { id: "f4", name: "Moi Teaching & Referral Hospital", county: "Uasin Gishu" },
+    sending: { id: "litein", name: "AIC Litein Mission Hospital", county: "Kericho", lat: -0.5683, lon: 35.2167 },
+    receiving: { id: "mtrh", name: "Moi Teaching & Referral Hospital", county: "Uasin Gishu" },
     diagnosis: "CKD Stage 4 — Specialist review & dialysis access",
     departedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
     etaMinutes: 0, transportMode: "private",
@@ -76,13 +75,14 @@ const MOCK_REFERRALS = [
       { time: "10:15", text: "Patient transferred successfully to MTRH Nephrology", type: "success" },
       { time: "10:16", text: "Discharge summary sent via UzimaLink", type: "success" },
     ],
-    progress: 100, routeFrom: "f1", routeTo: "f4",
+    progress: 100,
   },
   {
     id: "r4", priority: "urgent", status: "pending",
+    condition: "obstetric",
     patient: { name: "Amina Hassan", shaNumber: "SHA2024044444", age: 19, sex: "F" },
-    sending: { id: "f1", name: "AIC Litein Mission Hospital", county: "Kericho" },
-    receiving: { id: "f3", name: "Nakuru Level 5 Hospital", county: "Nakuru" },
+    sending: { id: "litein", name: "AIC Litein Mission Hospital", county: "Kericho", lat: -0.5683, lon: 35.2167 },
+    receiving: { id: "nakuru", name: "Nakuru Level 5 Hospital", county: "Nakuru" },
     diagnosis: "Post-partum haemorrhage — failed conservative management",
     departedAt: null, etaMinutes: null, transportMode: "ambulance",
     vitals: { hr: 132, sbp: 74, dbp: 48, spo2: 91, gcs: 12, rr: 28 },
@@ -90,7 +90,7 @@ const MOCK_REFERRALS = [
       { time: "15:48", text: "URGENT referral initiated — PPH uncontrolled", type: "warning" },
       { time: "15:49", text: "Awaiting acceptance from Nakuru L5 OBG", type: "info" },
     ],
-    progress: 5, routeFrom: "f1", routeTo: "f3",
+    progress: 5,
   },
 ];
 
@@ -108,6 +108,13 @@ const STATUS_CONFIG = {
   completed:  { label: "Completed", color: "#6b7280", icon: CheckCircle2 },
 };
 
+const COE_COLOR: Record<string, string> = {
+  Cardiac: "#ef4444", Stroke: "#a855f7", Trauma: "#f97316",
+  Burns: "#f59e0b", Renal: "#3b82f6", Oncology: "#ec4899",
+  Neurosurgery: "#8b5cf6", Obstetric: "#10b981",
+};
+
+/* ── VitalChip ───────────────────────────────────────────────────── */
 function VitalChip({ label, value, unit, warn }: { label: string; value: string | number; unit: string; warn?: boolean }) {
   return (
     <div className="flex-1 rounded-xl p-3 text-center"
@@ -119,122 +126,15 @@ function VitalChip({ label, value, unit, warn }: { label: string; value: string 
   );
 }
 
-function FacilityMap({ activeRouteFrom, activeRouteTo }: { activeRouteFrom?: string; activeRouteTo?: string }) {
-  const [progress, setProgress] = useState(0.65);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setProgress(p => p >= 0.98 ? 0.3 : p + 0.004);
-    }, 120);
-    return () => clearInterval(t);
-  }, []);
-
-  const getFacility = (id: string) => FACILITIES.find(f => f.id === id);
-  const fromF = activeRouteFrom ? getFacility(activeRouteFrom) : null;
-  const toF   = activeRouteTo   ? getFacility(activeRouteTo)   : null;
-
-  const ambX = fromF && toF ? fromF.x + (toF.x - fromF.x) * progress : 0;
-  const ambY = fromF && toF ? fromF.y + (toF.y - fromF.y) * progress : 0;
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden" style={{ background: "rgba(6,11,24,0.8)", border: "1px solid rgba(255,255,255,0.07)" }}>
-      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-        <div>
-          <h3 className="text-white font-semibold text-sm">SHA Facility Network</h3>
-          <p className="text-slate-500 text-xs mt-0.5">Kericho · Nakuru · Rift Valley corridor</p>
-        </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-400 inline-block" />In-network</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Out-of-network</div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-teal-400/50 inline-block" />Active transfer</div>
-        </div>
-      </div>
-      <svg viewBox="0 80 600 260" className="w-full" style={{ height: 240 }}>
-        <defs>
-          <radialGradient id="mapBg" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(20,184,166,0.03)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
-
-        <rect x="0" y="80" width="600" height="260" fill="url(#mapBg)" />
-
-        {/* Grid */}
-        {[100,140,180,220,260,300].map(y => (
-          <line key={y} x1="0" y1={y} x2="600" y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" />
-        ))}
-        {[80,160,240,320,400,480,560].map(x => (
-          <line key={x} x1={x} y1="80" x2={x} y2="340" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" />
-        ))}
-
-        {/* Static routes */}
-        {ROUTES.map((r, i) => {
-          const f = getFacility(r.from);
-          const t = getFacility(r.to);
-          if (!f || !t) return null;
-          const isActive = (r.from === activeRouteFrom && r.to === activeRouteTo) ||
-                           (r.from === activeRouteTo && r.to === activeRouteFrom);
-          return (
-            <line key={i}
-              x1={f.x} y1={f.y} x2={t.x} y2={t.y}
-              stroke={isActive ? "rgba(20,184,166,0.6)" : "rgba(255,255,255,0.06)"}
-              strokeWidth={isActive ? 1.5 : 1}
-              strokeDasharray={isActive ? "4 3" : undefined}
-            />
-          );
-        })}
-
-        {/* Active route highlight */}
-        {fromF && toF && (
-          <line
-            x1={fromF.x} y1={fromF.y} x2={toF.x} y2={toF.y}
-            stroke="rgba(20,184,166,0.35)"
-            strokeWidth={2}
-            strokeDasharray="6 4"
-          />
-        )}
-
-        {/* Facility nodes */}
-        {FACILITIES.map(f => {
-          const isActive = f.id === activeRouteFrom || f.id === activeRouteTo;
-          const color = f.inNetwork ? "#14b8a6" : "#f59e0b";
-          const r = f.home ? 10 : isActive ? 8 : 6;
-          return (
-            <g key={f.id}>
-              {isActive && (
-                <circle cx={f.x} cy={f.y} r={r + 8} fill={`${color}15`} stroke={`${color}30`} strokeWidth={1} />
-              )}
-              <circle cx={f.x} cy={f.y} r={r}
-                fill={f.home ? "rgba(20,184,166,0.2)" : isActive ? `${color}20` : "rgba(6,11,24,0.8)"}
-                stroke={color} strokeWidth={f.home ? 2 : 1.5} />
-              {f.home && <circle cx={f.x} cy={f.y} r={4} fill="#2dd4bf" />}
-              <text x={f.x} y={f.y + r + 11} textAnchor="middle"
-                fill={isActive ? color : "#64748b"} fontSize={f.home ? 8 : 7.5} fontWeight={isActive ? "600" : "400"}>
-                {f.short}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Ambulance dot */}
-        {fromF && toF && (
-          <g filter="url(#glow)">
-            <circle cx={ambX} cy={ambY} r={7} fill="rgba(20,184,166,0.2)" stroke="#2dd4bf" strokeWidth={1.5} />
-            <circle cx={ambX} cy={ambY} r={3} fill="#2dd4bf" />
-          </g>
-        )}
-      </svg>
-    </div>
-  );
-}
-
+/* ── LiveTracker ─────────────────────────────────────────────────── */
 function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
   const [vitals, setVitals] = useState(referral.vitals);
   const [eta, setEta] = useState(referral.etaMinutes || 0);
+
+  useEffect(() => {
+    setVitals(referral.vitals);
+    setEta(referral.etaMinutes || 0);
+  }, [referral.id]);
 
   useEffect(() => {
     if (!referral.vitals) return;
@@ -249,7 +149,7 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
       } : v);
     }, 2800);
     return () => clearInterval(t);
-  }, [referral.vitals]);
+  }, [referral.id]);
 
   useEffect(() => {
     if (!eta) return;
@@ -257,8 +157,8 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
     return () => clearInterval(t);
   }, [eta]);
 
-  const pc   = PRIORITY_CONFIG[referral.priority as keyof typeof PRIORITY_CONFIG];
-  const sc   = STATUS_CONFIG[referral.status as keyof typeof STATUS_CONFIG];
+  const pc = PRIORITY_CONFIG[referral.priority as keyof typeof PRIORITY_CONFIG];
+  const sc = STATUS_CONFIG[referral.status as keyof typeof STATUS_CONFIG];
   const StatusIcon = sc.icon;
 
   const elapsedMin = referral.departedAt
@@ -267,7 +167,6 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Patient banner */}
       <div className="rounded-2xl p-4" style={{ background: pc.bg, border: `1px solid ${pc.border}` }}>
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -284,9 +183,7 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
               <StatusIcon className="w-3.5 h-3.5" style={{ color: sc.color }} />
               <span className="text-xs font-medium" style={{ color: sc.color }}>{sc.label}</span>
             </div>
-            {elapsedMin !== null && (
-              <p className="text-xs text-slate-500">{elapsedMin}m elapsed</p>
-            )}
+            {elapsedMin !== null && <p className="text-xs text-slate-500">{elapsedMin}m elapsed</p>}
             {eta > 0 && (
               <div className="mt-2 rounded-lg px-3 py-1.5 text-center"
                    style={{ background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.2)" }}>
@@ -296,8 +193,6 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
             )}
           </div>
         </div>
-
-        {/* Route */}
         <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
           <Building2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
           <span className="text-xs text-slate-400 truncate">{referral.sending.name}</span>
@@ -305,13 +200,10 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
           <Building2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: pc.color }} />
           <span className="text-xs font-medium truncate" style={{ color: pc.color }}>{referral.receiving.name}</span>
         </div>
-
-        {/* Progress bar */}
         <div className="mt-3">
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
             <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${referral.progress}%` }}
+              initial={{ width: 0 }} animate={{ width: `${referral.progress}%` }}
               transition={{ duration: 1.2, ease: "easeOut" }}
               className="h-full rounded-full"
               style={{ background: `linear-gradient(90deg, ${pc.color}, ${pc.color}88)` }}
@@ -325,7 +217,6 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
         </div>
       </div>
 
-      {/* Vitals */}
       {vitals && (
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -349,7 +240,6 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
         </div>
       )}
 
-      {/* Updates */}
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
           <Radio className="w-3.5 h-3.5 text-teal-500" />
@@ -363,14 +253,11 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
                 u.type === "success" ? "bg-emerald-400" :
                 u.type === "warning" ? "bg-amber-400" : "bg-teal-400"
               )} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-300 leading-relaxed">{u.text}</p>
-              </div>
+              <p className="flex-1 text-xs text-slate-300 leading-relaxed">{u.text}</p>
               <span className="text-xs text-slate-600 font-mono flex-shrink-0">{u.time}</span>
             </div>
           ))}
         </div>
-        {/* SMS quick actions */}
         <div className="flex gap-2 mt-3">
           <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-colors"
                   style={{ background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.2)", color: "#2dd4bf" }}>
@@ -386,16 +273,141 @@ function LiveTracker({ referral }: { referral: typeof MOCK_REFERRALS[0] }) {
   );
 }
 
+/* ── AutoMatch Panel ─────────────────────────────────────────────── */
+function AutoMatchPanel({ referral, onSelect }: { referral: typeof MOCK_REFERRALS[0]; onSelect: (f: Facility) => void }) {
+  const matches = autoMatch(
+    referral.sending.lat,
+    referral.sending.lon,
+    referral.condition,
+    referral.sending.id
+  ) as (Facility & { _score: number; _dist: number; _capScore: number })[];
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+             style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}>
+          <Zap className="w-3.5 h-3.5 text-purple-400" />
+        </div>
+        <div>
+          <h3 className="text-white font-semibold text-sm">AI Auto-Match</h3>
+          <p className="text-slate-500 text-xs capitalize">{referral.condition} · {referral.sending.county}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5 text-xs px-2 py-1 rounded-full"
+             style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)", color: "#c084fc" }}>
+          <span className="w-1 h-1 rounded-full bg-purple-400 pulse-dot" />
+          Live
+        </div>
+      </div>
+
+      <div className="space-y-2 flex-1 overflow-y-auto scrollbar-none">
+        {matches.map((f, i) => {
+          const score = Math.round((f as any)._score);
+          const dist  = Math.round((f as any)._dist);
+          const cap   = Math.round((f as any)._capScore * 100);
+          return (
+            <motion.button
+              key={f.id}
+              initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06 }}
+              onClick={() => onSelect(f)}
+              className="w-full text-left rounded-xl p-3 transition-all group"
+              style={{
+                background: i === 0 ? "rgba(168,85,247,0.08)" : "rgba(255,255,255,0.02)",
+                border: i === 0 ? "1px solid rgba(168,85,247,0.25)" : "1px solid rgba(255,255,255,0.06)",
+              }}>
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                     style={{
+                       background: i === 0 ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.05)",
+                       color: i === 0 ? "#c084fc" : "#64748b",
+                     }}>
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-white font-semibold text-sm truncate">{f.short}</p>
+                    {i === 0 && (
+                      <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded-full font-bold"
+                            style={{ background: "rgba(168,85,247,0.2)", color: "#c084fc" }}>
+                        Best Match
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs truncate">{f.county} · Level {f.level}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1 text-xs">
+                      <MapPin className="w-3 h-3 text-slate-600" />
+                      <span className="text-slate-400">{dist} km</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      <Building2 className="w-3 h-3 text-slate-600" />
+                      <span className={cn(f.availBeds > 10 ? "text-teal-400" : f.availBeds > 0 ? "text-amber-400" : "text-red-400")}>
+                        {f.availBeds} beds
+                      </span>
+                    </div>
+                    <span className={cn("text-xs", f.inNetwork ? "text-teal-400" : "text-amber-400")}>
+                      {f.inNetwork ? "✓ Network" : "⚠ OON"}
+                    </span>
+                  </div>
+                  {/* Score bar */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                      <div className="h-full rounded-full transition-all duration-700"
+                           style={{
+                             width: `${Math.min(100, score)}%`,
+                             background: i === 0
+                               ? "linear-gradient(90deg,#a855f7,#7c3aed)"
+                               : "linear-gradient(90deg,#2dd4bf,#0891b2)",
+                           }} />
+                    </div>
+                    <span className="text-xs font-bold" style={{ color: i === 0 ? "#c084fc" : "#2dd4bf" }}>
+                      {Math.min(100, score).toFixed(0)}
+                    </span>
+                  </div>
+                  {/* CoE badges */}
+                  {f.coe.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {f.coe.slice(0, 3).map(c => (
+                        <span key={c} className="text-xs px-1.5 py-0.5 rounded font-semibold"
+                              style={{ background: `${COE_COLOR[c] ?? "#6b7280"}22`, color: COE_COLOR[c] ?? "#94a3b8", border: `1px solid ${COE_COLOR[c] ?? "#6b7280"}44` }}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <p className="text-xs text-slate-600 text-center">
+          Ranked by capability match · distance · available beds · SHA network
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────────────── */
 export default function ReferralsPage() {
   const [selectedId, setSelectedId] = useState<string>("r1");
-  const [showNewForm, setShowNewForm] = useState(false);
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
   const selected = MOCK_REFERRALS.find(r => r.id === selectedId) ?? MOCK_REFERRALS[0];
   const active   = MOCK_REFERRALS.filter(r => r.status === "in_transit");
   const pending  = MOCK_REFERRALS.filter(r => r.status === "pending" || r.status === "accepted");
 
+  const handleMatchSelect = (f: Facility) => {
+    setHighlightIds([f.id]);
+  };
+
   return (
     <div className="p-6 space-y-5 min-h-full" style={{ background: "var(--bg-primary)" }}>
+
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between">
@@ -420,7 +432,6 @@ export default function ReferralsPage() {
           </div>
           <motion.button
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            onClick={() => setShowNewForm(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
             style={{ background: "linear-gradient(135deg,#14b8a6,#0891b2)", boxShadow: "0 0 20px rgba(20,184,166,0.3)" }}>
             <Plus className="w-4 h-4" />
@@ -451,9 +462,8 @@ export default function ReferralsPage() {
         ))}
       </div>
 
-      {/* Main panel */}
+      {/* Main panel: list + live tracker */}
       <div className="grid grid-cols-12 gap-4">
-        {/* Referral list */}
         <div className="col-span-4 space-y-2">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Active Referrals</h2>
           {MOCK_REFERRALS.map((r, i) => {
@@ -495,7 +505,6 @@ export default function ReferralsPage() {
           })}
         </div>
 
-        {/* Live tracker */}
         <motion.div
           key={selectedId}
           initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
@@ -506,13 +515,47 @@ export default function ReferralsPage() {
         </motion.div>
       </div>
 
-      {/* Facility network map */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-        <FacilityMap
-          activeRouteFrom={selected.routeFrom}
-          activeRouteTo={selected.routeTo}
-        />
+      {/* Bottom: Kenya Map (60%) + AutoMatch Panel (40%) */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="grid grid-cols-12 gap-4"
+        style={{ minHeight: 480 }}>
+
+        {/* Interactive Kenya Map */}
+        <div className="col-span-7 rounded-2xl overflow-hidden"
+             style={{ background: "rgba(6,11,24,0.8)", border: "1px solid rgba(255,255,255,0.07)", minHeight: 480 }}>
+          <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+            <div>
+              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-teal-400" />
+                Kenya SHA Facility Network
+              </h3>
+              <p className="text-slate-500 text-xs mt-0.5">
+                {KENYA_FACILITIES.filter(f => f.inNetwork).length} in-network · {KENYA_FACILITIES.filter(f => !f.inNetwork).length} out-of-network · Click any facility for details
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg"
+                 style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 pulse-dot" />
+              Live Route Active
+            </div>
+          </div>
+          <div style={{ height: 420 }}>
+            <KenyaReferralMap
+              activeReferralFromId={selected.sending.id}
+              activeReferralToId={selected.receiving.id}
+              highlightIds={highlightIds}
+            />
+          </div>
+        </div>
+
+        {/* Auto-Match Panel */}
+        <div className="col-span-5 glass-card p-5" style={{ minHeight: 480 }}>
+          <AutoMatchPanel referral={selected} onSelect={handleMatchSelect} />
+        </div>
       </motion.div>
+
     </div>
   );
 }
