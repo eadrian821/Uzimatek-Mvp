@@ -9,7 +9,7 @@ import {
   Navigation, ChevronRight, Radio, Shield, X, ChevronDown,
   Lock, Send, RefreshCw, Search, Filter, Star, TrendingUp,
   Heart, FileText, User, Calendar, Users, Layers, BarChart3,
-  Network, Loader2, Check, Info, Truck, Helicopter,
+  Share2, Loader2, Check, Info, Car, Plane,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -900,8 +900,8 @@ function NewReferralWizard({ sendingFacility, onClose, onSubmit }: {
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { v:"ambulance", l:"Ambulance", icon:Ambulance },
-                      { v:"private", l:"Private Vehicle", icon:Truck },
-                      { v:"helicopter", l:"Air Ambulance", icon:Helicopter },
+                      { v:"private", l:"Private Vehicle", icon:Car },
+                      { v:"helicopter", l:"Air Ambulance", icon:Plane },
                     ].map(t=>{
                       const sel=form.transportMode===t.v;
                       return (
@@ -1216,7 +1216,7 @@ export default function ReferralsPage() {
 
   const TABS = [
     { id:"active",    label:"Active Referrals", icon:Ambulance, badge:active.length+pending.length },
-    { id:"network",   label:"Facility Network", icon:Network,   badge:0 },
+    { id:"network",   label:"Facility Network", icon:Share2,    badge:0 },
     { id:"analytics", label:"Analytics",        icon:BarChart3, badge:0 },
   ];
 
