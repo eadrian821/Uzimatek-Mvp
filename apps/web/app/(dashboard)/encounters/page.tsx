@@ -2,13 +2,16 @@
 
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Plus, Sparkles, Loader2, FileUp, Check,
-  AlertCircle, Eye, Clock, FileText, Search,
+  Eye, FileText, Search, Stethoscope, UserRound,
+  Brain, ClipboardList, ArrowRight, TrendingUp,
+  Calendar, ChevronRight, Activity,
 } from "lucide-react";
 import Papa from "papaparse";
 import { api } from "@/lib/api";
-import { formatDate, getStatusColor, cn } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 
@@ -19,7 +22,7 @@ const MOCK_ENCOUNTERS = [
     chiefComplaint: "Fever and headache for 3 days", status: "claim_generated",
     source: "manual", provider: { name: "Dr. Grace Otieno", specialty: "General Medicine" },
     items: [{ type: "diagnosis" }, { type: "procedure" }, { type: "investigation" }, { type: "drug" }],
-    _count: { claims: 1 },
+    _count: { claims: 1 }, confidence: "high",
   },
   {
     id: "e2", patientShaNumber: "SHA2024005678", patientName: "John Kamau",
@@ -27,34 +30,69 @@ const MOCK_ENCOUNTERS = [
     chiefComplaint: "Abdominal pain, appendicitis", status: "coded",
     source: "csv", provider: { name: "Dr. Samuel Kipchoge", specialty: "Surgery" },
     items: [{ type: "diagnosis" }, { type: "procedure" }],
-    _count: { claims: 0 },
+    _count: { claims: 0 }, confidence: "high",
   },
   {
     id: "e3", patientShaNumber: "SHA2024009012", patientName: "Fatuma Hassan",
     visitDate: new Date(Date.now() - 3 * 86400000).toISOString(), visitType: "maternity",
-    chiefComplaint: "In labour, 38 weeks", status: "ready_to_code",
+    chiefComplaint: "In labour, 38 weeks gestation", status: "ready_to_code",
     source: "manual", provider: { name: "Dr. Grace Otieno", specialty: "General Medicine" },
-    items: [],
-    _count: { claims: 0 },
+    items: [], _count: { claims: 0 }, confidence: null,
   },
   {
     id: "e4", patientShaNumber: "SHA2024011111", patientName: "Peter Otieno",
     visitDate: new Date(Date.now() - 4 * 86400000).toISOString(), visitType: "emergency",
     chiefComplaint: "RTA, fracture right femur", status: "ready_to_code",
     source: "csv", provider: { name: "Dr. Samuel Kipchoge", specialty: "Surgery" },
-    items: [],
-    _count: { claims: 0 },
+    items: [], _count: { claims: 0 }, confidence: null,
+  },
+  {
+    id: "e5", patientShaNumber: "SHA2024022222", patientName: "Grace Wanjiku",
+    visitDate: new Date(Date.now() - 6 * 86400000).toISOString(), visitType: "maternity",
+    chiefComplaint: "Caesarean section — elective", status: "claim_generated",
+    source: "manual", provider: { name: "Dr. Grace Otieno", specialty: "General Medicine" },
+    items: [{ type: "diagnosis" }, { type: "procedure" }, { type: "drug" }],
+    _count: { claims: 1 }, confidence: "medium",
   },
 ];
 
+const MOCK_PATIENTS = [
+  { shaNumber: "SHA2024001234", name: "Mary Achieng", dob: "1985-03-12", sex: "F", phone: "+254722000001", visits: 3, lastVisit: "2025-05-13" },
+  { shaNumber: "SHA2024005678", name: "John Kamau",   dob: "1990-07-22", sex: "M", phone: "+254733000002", visits: 1, lastVisit: "2025-05-12" },
+  { shaNumber: "SHA2024009012", name: "Fatuma Hassan",dob: "1997-11-05", sex: "F", phone: "+254744000003", visits: 2, lastVisit: "2025-05-11" },
+  { shaNumber: "SHA2024011111", name: "Peter Otieno", dob: "1989-01-30", sex: "M", phone: "+254755000004", visits: 1, lastVisit: "2025-05-10" },
+  { shaNumber: "SHA2024022222", name: "Grace Wanjiku",dob: "1996-08-15", sex: "F", phone: "+254766000005", visits: 4, lastVisit: "2025-05-08" },
+];
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  draft:           { label: "Draft",          color: "#64748b", bg: "rgba(100,116,139,0.12)" },
+  ready_to_code:   { label: "Ready to Code",  color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  coding:          { label: "Coding…",        color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+  coded:           { label: "Coded",          color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+  claim_generated: { label: "Claim Generated",color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
+  error:           { label: "Error",          color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+};
+
+const VISIT_TYPE_COLOR: Record<string, string> = {
+  outpatient: "#14b8a6", inpatient: "#3b82f6", emergency: "#ef4444",
+  maternity: "#ec4899", day_case: "#8b5cf6",
+};
+
+const TABS = [
+  { id: "queue",    label: "Clinical Queue",  icon: ClipboardList },
+  { id: "records",  label: "Patient Records", icon: UserRound },
+  { id: "coding",   label: "SHA Coding",      icon: Brain },
+];
+
 export default function EncountersPage() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [csvPreview, setCsvPreview] = useState<Record<string, string>[] | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
-  const [codingId, setCodingId] = useState<string | null>(null);
+  const { toast }      = useToast();
+  const queryClient    = useQueryClient();
+  const fileRef        = useRef<HTMLInputElement>(null);
+  const [tab, setTab]  = useState<"queue" | "records" | "coding">("queue");
+  const [csvPreview, setCsvPreview]   = useState<Record<string, string>[] | null>(null);
+  const [search, setSearch]           = useState("");
+  const [codingId, setCodingId]       = useState<string | null>(null);
+  const [patientSearch, setPatientSearch] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["encounters"],
@@ -64,15 +102,9 @@ export default function EncountersPage() {
   });
 
   const codeMutation = useMutation({
-    mutationFn: (encounterId: string) => {
-      setCodingId(encounterId);
-      return api.codeEncounter(encounterId);
-    },
+    mutationFn: (encounterId: string) => { setCodingId(encounterId); return api.codeEncounter(encounterId); },
     onSuccess: (result) => {
-      toast({
-        title: "AI coding complete",
-        description: `${(result as { items: unknown[] }).items?.length || 0} codes extracted`,
-      });
+      toast({ title: "AI coding complete", description: `${(result as { items: unknown[] }).items?.length || 0} codes extracted` });
       queryClient.invalidateQueries({ queryKey: ["encounters"] });
     },
     onError: () => toast({ title: "Coding failed", variant: "destructive" }),
@@ -82,7 +114,7 @@ export default function EncountersPage() {
   const importMutation = useMutation({
     mutationFn: (rows: Record<string, string>[]) => api.bulkImportEncounters(rows),
     onSuccess: (result) => {
-      toast({ title: `Imported ${result.created} encounters`, description: result.errors.length > 0 ? `${result.errors.length} rows had errors` : undefined });
+      toast({ title: `Imported ${result.created} encounters` });
       setCsvPreview(null);
       queryClient.invalidateQueries({ queryKey: ["encounters"] });
     },
@@ -91,221 +123,369 @@ export default function EncountersPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => setCsvPreview(results.data as Record<string, string>[]),
-    });
+    Papa.parse(file, { header: true, skipEmptyLines: true, complete: (r) => setCsvPreview(r.data as Record<string, string>[]) });
   };
 
   const encounters = data?.items || MOCK_ENCOUNTERS;
-  const filtered = search
-    ? encounters.filter(
-        (e) =>
-          e.patientName.toLowerCase().includes(search.toLowerCase()) ||
-          e.patientShaNumber.includes(search)
-      )
+  const filtered   = search
+    ? encounters.filter(e => e.patientName.toLowerCase().includes(search.toLowerCase()) || e.patientShaNumber.includes(search))
     : encounters;
 
+  const codingQueue = encounters.filter(e => ["ready_to_code", "draft"].includes(e.status));
+  const filteredPatients = patientSearch
+    ? MOCK_PATIENTS.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.shaNumber.includes(patientSearch))
+    : MOCK_PATIENTS;
+
   return (
-    <div className="space-y-4">
+    <div className="p-6 min-h-full" style={{ background: "var(--bg-primary)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Encounters</h1>
-          <p className="text-sm text-slate-500">{data?.total || encounters.length} total · ingest clinical data for AI coding</p>
+          <div className="flex items-center gap-3">
+            <Stethoscope className="w-5 h-5 text-teal-400" />
+            <h1 className="text-2xl font-bold text-white">MyUzimaClinical</h1>
+          </div>
+          <p className="text-slate-400 text-sm mt-1">
+            {data?.total || encounters.length} encounters · SHA clinical suite
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm px-4 py-2 rounded-lg transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            Import CSV
-          </button>
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", color: "#94a3b8" }}>
+            <Upload className="w-4 h-4" />Import CSV
+          </motion.button>
           <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Encounter
-          </button>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+            style={{ background: "linear-gradient(135deg,#14b8a6,#0891b2)", boxShadow: "0 0 20px rgba(20,184,166,0.3)" }}>
+            <Plus className="w-4 h-4" />New Encounter
+          </motion.button>
         </div>
+      </motion.div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl mb-5 w-fit"
+           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
+            className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              tab === t.id ? "text-white" : "text-slate-500 hover:text-slate-300")}
+            style={tab === t.id ? { background: "linear-gradient(135deg,rgba(20,184,166,0.2),rgba(8,145,178,0.1))", border: "1px solid rgba(20,184,166,0.25)" } : {}}>
+            <t.icon className={cn("w-4 h-4", tab === t.id ? "text-teal-400" : "")} />
+            {t.label}
+            {t.id === "coding" && codingQueue.length > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-semibold">
+                {codingQueue.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* CSV Upload Preview */}
-      {csvPreview && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <FileUp className="w-5 h-5 text-blue-600" />
-              <span className="font-semibold text-blue-900">{csvPreview.length} rows ready to import</span>
+      <AnimatePresence mode="wait">
+        {/* ── CLINICAL QUEUE ─────────────────────────────────────────── */}
+        {tab === "queue" && (
+          <motion.div key="queue" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            {/* CSV preview */}
+            {csvPreview && (
+              <div className="rounded-2xl p-4 mb-4"
+                   style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <FileUp className="w-4 h-4 text-blue-400" />
+                    <span className="font-semibold text-blue-300 text-sm">{csvPreview.length} rows ready to import</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setCsvPreview(null)}
+                      className="text-sm text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      Cancel
+                    </button>
+                    <button onClick={() => importMutation.mutate(csvPreview)} disabled={importMutation.isPending}
+                      className="flex items-center gap-2 text-sm px-4 py-1.5 rounded-lg font-medium text-white"
+                      style={{ background: "linear-gradient(135deg,#3b82f6,#2563eb)" }}>
+                      {importMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Import {csvPreview.length} rows
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CSV hint */}
+            <div className="rounded-xl p-3 mb-4 flex items-center gap-3"
+                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <FileText className="w-4 h-4 text-slate-600 flex-shrink-0" />
+              <p className="text-xs text-slate-500">
+                CSV headers: <span className="font-mono text-slate-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">
+                  patient_sha_number, patient_name, dob, sex, visit_date, visit_type, provider_kmpdc, chief_complaint, narrative
+                </span>
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCsvPreview(null)}
-                className="text-sm text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 bg-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => importMutation.mutate(csvPreview)}
-                disabled={importMutation.isPending}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-lg transition-colors"
-              >
-                {importMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Import {csvPreview.length} rows
-              </button>
+
+            {/* Search */}
+            <div className="relative mb-4 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search patient or SHA number…"
+                className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-1 transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#f0f4ff" }} />
             </div>
-          </div>
-          <div className="overflow-x-auto max-h-40">
-            <table className="text-xs w-full">
-              <thead>
-                <tr className="border-b border-blue-200">
-                  {Object.keys(csvPreview[0] || {}).map((k) => (
-                    <th key={k} className="px-3 py-1.5 text-left text-blue-700 font-semibold">
-                      {k}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {csvPreview.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-b border-blue-100">
-                    {Object.values(row).map((v, j) => (
-                      <td key={j} className="px-3 py-1 text-blue-800 truncate max-w-[120px]">
-                        {v as string}
-                      </td>
+
+            {/* Table */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    {["Patient", "Visit", "Status", "Provider", "Codes", "Actions"].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {csvPreview.length > 5 && (
-              <p className="text-xs text-blue-500 px-3 py-1">… and {csvPreview.length - 5} more rows</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* CSV template download hint */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-        <FileText className="w-5 h-5 text-slate-400 flex-shrink-0" />
-        <p className="text-sm text-slate-600">
-          CSV headers: <span className="font-mono text-xs bg-slate-200 px-1 py-0.5 rounded">patient_sha_number, patient_name, patient_dob, patient_sex, visit_date, visit_type, provider_kmpdc, chief_complaint, narrative</span>
-        </p>
-      </div>
-
-      {/* Search + table */}
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-4 py-3 border-b border-slate-100">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search patient or SHA number…"
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-          </div>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Patient</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Visit</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Provider</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Codes</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => (
-                    <td key={j} className="px-4 py-4">
-                      <div className="h-4 bg-slate-100 rounded animate-pulse" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
-                  No encounters found
-                </td>
-              </tr>
-            ) : (
-              filtered.map((enc) => (
-                <tr key={enc.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{enc.patientName}</div>
-                    <div className="text-xs text-slate-400 font-mono">{enc.patientShaNumber}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-slate-700">{formatDate(enc.visitDate)}</div>
-                    <div className="text-xs text-slate-400 capitalize">{enc.visitType.replace("_", " ")}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium capitalize", getStatusColor(enc.status))}>
-                      {enc.status.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 text-xs">{enc.provider?.name}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {enc.items.length > 0 ? (
-                        <span className="text-xs text-emerald-600 font-medium">{enc.items.length} codes</span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Not coded</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      {["ready_to_code", "draft"].includes(enc.status) && (
-                        <button
-                          onClick={() => codeMutation.mutate(enc.id)}
-                          disabled={codingId === enc.id}
-                          className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                        >
-                          {codingId === enc.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        {Array.from({ length: 6 }).map((_, j) => (
+                          <td key={j} className="px-4 py-4">
+                            <div className="h-4 rounded shimmer" style={{ background: "rgba(255,255,255,0.05)" }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">No encounters found</td></tr>
+                  ) : filtered.map((enc, i) => {
+                    const sc = STATUS_CONFIG[enc.status] || STATUS_CONFIG.draft;
+                    const vtColor = VISIT_TYPE_COLOR[enc.visitType] || "#64748b";
+                    return (
+                      <motion.tr key={enc.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
+                        className="group transition-colors"
+                        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: "transparent" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                        <td className="px-4 py-3.5">
+                          <div className="font-medium text-white">{enc.patientName}</div>
+                          <div className="text-xs text-slate-500 font-mono mt-0.5">{enc.patientShaNumber}</div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="text-slate-300 text-sm">{formatDate(enc.visitDate)}</div>
+                          <span className="text-xs font-medium capitalize px-2 py-0.5 rounded-full mt-1 inline-block"
+                                style={{ background: `${vtColor}15`, color: vtColor, border: `1px solid ${vtColor}30` }}>
+                            {enc.visitType.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium"
+                                style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.color}30` }}>
+                            {sc.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-400 text-xs">{enc.provider?.name}</td>
+                        <td className="px-4 py-3.5">
+                          {enc.items.length > 0 ? (
+                            <span className="text-emerald-400 text-xs font-semibold">{enc.items.length} codes</span>
                           ) : (
-                            <Sparkles className="w-3.5 h-3.5" />
+                            <span className="text-slate-600 text-xs">—</span>
                           )}
-                          AI Code
-                        </button>
-                      )}
-                      {enc.status === "coded" && enc._count.claims === 0 && (
-                        <button
-                          onClick={() => api.generateClaimFromEncounter(enc.id).then(() => queryClient.invalidateQueries({ queryKey: ["encounters"] }))}
-                          className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          Generate Claim
-                        </button>
-                      )}
-                      {enc._count?.claims > 0 && (
-                        <Link
-                          href="/claims"
-                          className="flex items-center gap-1.5 text-slate-500 hover:text-teal-600 text-xs px-2 py-1.5 rounded-lg hover:bg-teal-50 transition-colors"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          View claim
-                        </Link>
-                      )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-1">
+                            {["ready_to_code", "draft"].includes(enc.status) && (
+                              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                onClick={() => codeMutation.mutate(enc.id)}
+                                disabled={codingId === enc.id}
+                                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                                style={{ background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.25)", color: "#2dd4bf" }}>
+                                {codingId === enc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                AI Code
+                              </motion.button>
+                            )}
+                            {enc.status === "coded" && enc._count.claims === 0 && (
+                              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                onClick={() => api.generateClaimFromEncounter(enc.id).then(() => queryClient.invalidateQueries({ queryKey: ["encounters"] }))}
+                                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                                style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", color: "#60a5fa" }}>
+                                <FileText className="w-3.5 h-3.5" />Claim
+                              </motion.button>
+                            )}
+                            {enc._count?.claims > 0 && (
+                              <Link href="/claims"
+                                className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-400 px-2 py-1.5 rounded-lg transition-colors">
+                                <Eye className="w-3.5 h-3.5" />View
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── PATIENT RECORDS ─────────────────────────────────────────── */}
+        {tab === "records" && (
+          <motion.div key="records" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <div className="relative mb-5 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input value={patientSearch} onChange={e => setPatientSearch(e.target.value)}
+                placeholder="Search by name or SHA number…"
+                className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-1"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#f0f4ff" }} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredPatients.map((p, i) => (
+                <motion.div key={p.shaNumber} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  className="glass-card p-5 cursor-pointer group"
+                  style={{ transition: "border-color 0.2s" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(20,184,166,0.25)")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}>
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-white"
+                         style={{ background: `linear-gradient(135deg,${p.sex === "F" ? "#ec4899,#db2777" : "#14b8a6,#0891b2"})` }}>
+                      {p.name.charAt(0)}
                     </div>
-                  </td>
-                </tr>
-              ))
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm leading-tight">{p.name}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">{p.shaNumber}</p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{ background: p.sex === "F" ? "rgba(236,72,153,0.12)" : "rgba(20,184,166,0.12)",
+                                   color: p.sex === "F" ? "#f472b6" : "#2dd4bf" }}>
+                      {p.sex === "F" ? "Female" : "Male"}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 flex items-center gap-1.5"><Calendar className="w-3 h-3" />Date of Birth</span>
+                      <span className="text-slate-300">{p.dob}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 flex items-center gap-1.5"><Activity className="w-3 h-3" />Visits</span>
+                      <span className="text-teal-400 font-semibold">{p.visits} encounters</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Last Visit</span>
+                      <span className="text-slate-300">{p.lastVisit}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 flex items-center justify-between"
+                       style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span className="text-xs text-slate-600">{p.phone}</span>
+                    <span className="flex items-center gap-1 text-xs text-teal-500 group-hover:text-teal-300 transition-colors">
+                      View Record <ChevronRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── SHA CODING QUEUE ────────────────────────────────────────── */}
+        {tab === "coding" && (
+          <motion.div key="coding" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="space-y-4">
+            {/* AI coding stats */}
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: "Awaiting AI Coding", value: codingQueue.length.toString(), color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
+                { label: "Coded This Month", value: "284", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+                { label: "Avg Confidence", value: "91%", color: "#14b8a6", bg: "rgba(20,184,166,0.1)" },
+              ].map(s => (
+                <div key={s.label} className="glass-card p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                       style={{ background: s.bg }}>
+                    <TrendingUp className="w-5 h-5" style={{ color: s.color }} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white leading-none">{s.value}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {codingQueue.length === 0 ? (
+              <div className="glass-card p-12 text-center">
+                <Brain className="w-10 h-10 text-teal-500/50 mx-auto mb-3" />
+                <p className="text-white font-semibold mb-1">Coding queue is empty</p>
+                <p className="text-slate-500 text-sm">All encounters have been coded</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {codingQueue.map((enc, i) => (
+                  <motion.div key={enc.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    className="glass-card p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                           style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                        <Stethoscope className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-semibold">{enc.patientName}</span>
+                          <span className="text-xs text-slate-500 font-mono">{enc.patientShaNumber}</span>
+                        </div>
+                        <p className="text-slate-400 text-sm mb-1">{enc.chiefComplaint}</p>
+                        <div className="flex items-center gap-3 text-xs text-slate-500">
+                          <span>{formatDate(enc.visitDate)}</span>
+                          <span>·</span>
+                          <span className="capitalize">{enc.visitType.replace("_", " ")}</span>
+                          <span>·</span>
+                          <span>{enc.provider?.name}</span>
+                        </div>
+                      </div>
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => codeMutation.mutate(enc.id)} disabled={codingId === enc.id}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)", boxShadow: "0 0 16px rgba(124,58,237,0.3)" }}>
+                        {codingId === enc.id ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" />Coding…</>
+                        ) : (
+                          <><Sparkles className="w-4 h-4" />Run AI Coder</>
+                        )}
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+
+            {/* Code history */}
+            <div className="glass-card p-5">
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <Brain className="w-4 h-4 text-teal-400" />
+                Recently Coded
+              </h3>
+              {encounters.filter(e => e.status === "coded" || e.status === "claim_generated").map((enc, i) => (
+                <div key={enc.id} className="flex items-center gap-4 py-3"
+                     style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : undefined }}>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-slate-200 text-sm font-medium">{enc.patientName}</span>
+                    <span className="text-slate-500 text-xs ml-2">{enc.chiefComplaint}</span>
+                  </div>
+                  <span className="text-emerald-400 text-xs font-semibold">{enc.items.length} codes</span>
+                  <ArrowRight className="w-4 h-4 text-slate-600" />
+                  <span className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(20,184,166,0.1)", color: "#2dd4bf", border: "1px solid rgba(20,184,166,0.2)" }}>
+                    {STATUS_CONFIG[enc.status]?.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

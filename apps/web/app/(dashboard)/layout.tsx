@@ -8,19 +8,21 @@ import {
   LayoutDashboard, FileText, Stethoscope, XCircle,
   BarChart3, Building2, CreditCard, ShieldCheck,
   LogOut, Bell, Search, Activity, ChevronRight,
+  Ambulance,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
-  { href: "/claims",     label: "Claims",      icon: FileText,    badge: "12" },
-  { href: "/encounters", label: "Encounters",  icon: Stethoscope },
-  { href: "/denials",    label: "Denials",     icon: XCircle,     badge: "8", badgeRed: true },
-  { href: "/reports",    label: "Reports",     icon: BarChart3 },
-  { href: "/facility",   label: "Facility",    icon: Building2 },
-  { href: "/billing",    label: "Billing",     icon: CreditCard },
-  { href: "/admin",      label: "Admin",       icon: ShieldCheck, roles: ["manager", "facility_admin", "super_admin"] },
+  { href: "/dashboard",  label: "Dashboard",        icon: LayoutDashboard },
+  { href: "/claims",     label: "Claims",            icon: FileText,   badge: "12" },
+  { href: "/encounters", label: "MyUzimaClinical",   icon: Stethoscope },
+  { href: "/referrals",  label: "UzimaReferral",     icon: Ambulance,  badge: "2", badgeRed: true, badgePulse: true },
+  { href: "/denials",    label: "Denials",           icon: XCircle,    badge: "8", badgeRed: true },
+  { href: "/reports",    label: "Reports",           icon: BarChart3 },
+  { href: "/facility",   label: "Facility",          icon: Building2 },
+  { href: "/billing",    label: "Billing",           icon: CreditCard },
+  { href: "/admin",      label: "Admin",             icon: ShieldCheck, roles: ["manager", "facility_admin", "super_admin"] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -132,9 +134,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span className="flex-1 relative z-10">{item.label}</span>
                   {item.badge && (
                     <span className={cn(
-                      "text-xs px-1.5 py-0.5 rounded-full font-semibold relative z-10",
+                      "flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-semibold relative z-10",
                       item.badgeRed ? "bg-red-500/20 text-red-400" : "bg-teal-500/20 text-teal-400"
                     )}>
+                      {(item as { badgePulse?: boolean }).badgePulse && (
+                        <span className="w-1 h-1 rounded-full bg-red-400 pulse-dot" />
+                      )}
                       {item.badge}
                     </span>
                   )}
