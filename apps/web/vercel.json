@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile --config.approve-builds=1",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://uzimatek-api.onrender.com"
+  }
+}

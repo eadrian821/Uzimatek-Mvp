@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import 'leaflet/dist/leaflet.css';
 
 @tailwind base;
@@ -21,7 +20,18 @@
   --accent-gold: #f59e0b;
   --glass-bg: rgba(13, 21, 38, 0.8);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --sidebar-width: 256px;
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+
+  /* Typography */
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+
+  /* Elevation shadows (intentional, not generic) */
+  --shadow-teal-sm: 0 0 12px rgba(20,184,166,0.2), 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-teal-md: 0 0 24px rgba(20,184,166,0.25), 0 4px 20px rgba(0,0,0,0.5);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-float: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
 
   /* Radix / shadcn tokens (dark mode always) */
   --background: 222 47% 5%;
@@ -64,9 +74,19 @@
   body {
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-body), system-ui, -apple-system, sans-serif;
     font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
     min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display), system-ui, sans-serif;
+  }
+
+  /* Selection color */
+  ::selection {
+    background: rgba(20, 184, 166, 0.3);
+    color: #f0f4ff;
   }
 
   /* Custom scrollbar */
@@ -166,6 +186,61 @@
     border-radius: calc(var(--radius) + 1px);
     background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(8, 145, 178, 0.2), rgba(20, 184, 166, 0.1));
     z-index: -1;
+  }
+
+  /* Display font utility */
+  .font-display {
+    font-family: var(--font-display), system-ui, sans-serif;
+  }
+
+  /* Tabular numerals for data tables */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* SHA workflow pipeline step */
+  .pipeline-step {
+    position: relative;
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    transition: background 0.4s ease;
+  }
+  .pipeline-step::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    background: var(--bg-primary);
+  }
+
+  /* Scrollbar hidden helper */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Context panel slide */
+  .context-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: 360px;
+    background: linear-gradient(180deg, #0c1628 0%, #060b18 100%);
+    border-left: 1px solid rgba(255,255,255,0.07);
+    box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+    overflow-y: auto;
   }
 }
 

@@ -29,6 +29,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
 
+  // Known demo accounts that work offline — no backend required.
+  const DEMO_CREDENTIALS: Record<string, { name: string; role: string }> = {
+    "wanjiku@aiclitein.or.ke":  { name: "Wanjiku Kamau",   role: "biller"      },
+    "manager@aiclitein.or.ke":  { name: "James Ochieng",   role: "manager"     },
+    "admin@uzimatek.co.ke":     { name: "Uzimatek Admin",  role: "super_admin" },
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -37,8 +44,28 @@ export default function LoginPage() {
       const res = await api.login(email, password);
       setAuth(res.user, res.accessToken, res.refreshToken);
       router.push("/dashboard");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+    } catch {
+      // Demo mode: if the API is unreachable, fall back to hardcoded credentials
+      // so the presentation works from any computer with just the Vercel URL.
+      const demo = DEMO_CREDENTIALS[email.toLowerCase().trim()];
+      if (demo && password === "Demo@2026!") {
+        setAuth(
+          {
+            id: "demo-user",
+            email:        email.toLowerCase().trim(),
+            name:         demo.name,
+            role:         demo.role,
+            facilityId:   "fac_demo_001",
+            facilityName: "AIC Litein Mission Hospital",
+            shaCode:      "0004KER001",
+          },
+          `demo-access-${Date.now()}`,
+          `demo-refresh-${Date.now()}`
+        );
+        router.push("/dashboard");
+        return;
+      }
+      setError("Invalid email or password. Use the demo accounts above.");
     } finally {
       setLoading(false);
     }
