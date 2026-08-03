@@ -13,6 +13,8 @@ import { denialsRoutes } from "./routes/denials";
 import { dashboardsRoutes } from "./routes/dashboards";
 import { auditRoutes } from "./routes/audit";
 import { billingRoutes } from "./routes/billing";
+import { opportunitiesRoutes } from "./routes/opportunities";
+import { registerOpportunityScheduler } from "./lib/opportunityScheduler";
 
 const app = Fastify({
   logger: { level: process.env.NODE_ENV === "production" ? "info" : "debug" },
@@ -59,6 +61,12 @@ async function start() {
   await app.register(dashboardsRoutes, { prefix: "/v1/dashboards" });
   await app.register(auditRoutes, { prefix: "/v1/audit" });
   await app.register(billingRoutes, { prefix: "/v1/billing" });
+  await app.register(opportunitiesRoutes, { prefix: "/v1/opportunities" });
+
+  // ── Background jobs ────────────────────────────────────────────────────────
+  await registerOpportunityScheduler().catch((err) => {
+    console.warn("[app] Opportunity scheduler failed to register:", err.message);
+  });
 
   // ── Start ──────────────────────────────────────────────────────────────────
   const port = parseInt(process.env.PORT || process.env.API_PORT || "3001");

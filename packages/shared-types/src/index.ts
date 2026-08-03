@@ -6,3 +6,4 @@ export * from "./denials";
 export * from "./dashboards";
 export * from "./billing";
 export * from "./audit";
+export * from "./opportunities";

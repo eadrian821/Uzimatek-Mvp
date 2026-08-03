@@ -344,6 +344,52 @@ model Invoice {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OPPORTUNITY MONITORING (grants, competitions, accelerators, events)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Opportunity {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title             String
+  organization      String?
+  sourceUrl         String
+  category          String    // clinical_research | digital_health | startup_competition | accelerator_fellowship | investor_event
+  region            String?   // e.g. "Kenya", "Africa", "Global"
+  deadline          DateTime?
+  fundingAmountText String?
+  fundingAmountUsd  Float?
+  description       String    @db.Text
+  relevanceReason   String?   @db.Text
+  yieldScore        Float
+  effortScore       Float
+  compositeScore    Float
+  status            String    @default("new") // new | shortlisted | applied | dismissed | expired
+  discoveredAt      DateTime  @default(now())
+  scanRunId         String    @db.Uuid
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  scanRun           OpportunityScanRun @relation(fields: [scanRunId], references: [id])
+
+  @@unique([sourceUrl])
+  @@index([status, compositeScore])
+  @@map("opportunities")
+}
+
+model OpportunityScanRun {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status             String    // running | completed | completed_with_errors | failed
+  categoriesRun      String[]
+  opportunitiesFound Int       @default(0)
+  errorMessage       String?   @db.Text
+  startedAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  opportunities      Opportunity[]
+
+  @@map("opportunity_scan_runs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AUDIT
 // ─────────────────────────────────────────────────────────────────────────────
 
