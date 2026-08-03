@@ -192,6 +192,70 @@ class ApiClient {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
     return this.request<{ events: unknown[]; total: number }>(`/v1/audit${qs}`);
   }
+
+  // Opportunities
+  getOpportunities(params?: Record<string, string | number>) {
+    const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
+    return this.request<{ items: Opportunity[]; total: number; page: number; pageSize: number }>(
+      `/v1/opportunities${qs}`
+    );
+  }
+
+  getOpportunityScanRuns(limit = 10) {
+    return this.request<{ items: OpportunityScanRun[] }>(
+      `/v1/opportunities/scan-runs?limit=${limit}`
+    );
+  }
+
+  updateOpportunityStatus(id: string, status: string) {
+    return this.request<Opportunity>(`/v1/opportunities/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  runOpportunityScan() {
+    return this.request<{
+      scanRunId: string;
+      status: string;
+      opportunitiesFound: number;
+      categoriesRun: string[];
+      categoryErrors: Array<{ category: string; message: string }>;
+      emailSent: boolean;
+      emailSkipReason?: string;
+    }>("/v1/opportunities/scan", { method: "POST" });
+  }
+}
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  organization: string | null;
+  sourceUrl: string;
+  category: string;
+  region: string | null;
+  deadline: string | null;
+  fundingAmountText: string | null;
+  fundingAmountUsd: number | null;
+  description: string;
+  relevanceReason: string | null;
+  yieldScore: number;
+  effortScore: number;
+  compositeScore: number;
+  status: string;
+  discoveredAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OpportunityScanRun {
+  id: string;
+  status: string;
+  categoriesRun: string[];
+  opportunitiesFound: number;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
 }
 
 export class ApiError extends Error {

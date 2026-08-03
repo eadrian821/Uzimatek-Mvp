@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FileText, Stethoscope, XCircle,
   BarChart3, Building2, CreditCard, ShieldCheck,
   LogOut, Bell, Search, Activity, ChevronRight,
-  Ambulance, Command, Zap, TrendingUp,
+  Ambulance, Command, Zap, TrendingUp, Compass,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: "/encounters", label: "MyUzimaClinical",  icon: Stethoscope },
   { href: "/referrals",  label: "UzimaReferral",    icon: Ambulance,  badge: "2", badgeRed: true, badgePulse: true },
   { href: "/denials",    label: "Denials",          icon: XCircle,    badge: "8", badgeRed: true },
+  { href: "/opportunities", label: "Opportunities", icon: Compass },
   { href: "/reports",    label: "Reports",          icon: BarChart3 },
   { href: "/facility",   label: "Facility",         icon: Building2 },
   { href: "/billing",    label: "Billing",          icon: CreditCard },
